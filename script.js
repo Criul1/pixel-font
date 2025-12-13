@@ -1,9 +1,14 @@
-let fontBundle = {};
+// Font data is loaded from fonts_data.js (embedded fonts.json)
 
-fetch("fonts.json")
-  .then((response) => response.json())
-  .then((data) => {
-    fontBundle = data;
+// Initialize app when DOM is ready
+(function() {
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    init();
+  }
+
+  function init() {
 
     // Get references to all the necessary elements
     const textInput = document.getElementById("textInput");
@@ -31,32 +36,21 @@ fetch("fonts.json")
       option.textContent = key;
       fontSelect.appendChild(option);
     }
-    // Add other web fonts
+    // Add system fonts (works offline)
     const webFonts = [
-      { name: "VT323", value: "'VT323', monospace" },
-      { name: "IBM Plex Mono", value: "'IBM Plex Mono', monospace" },
-      { name: "Space Mono", value: "'Space Mono', monospace" },
-      { name: "Inconsolata", value: "'Inconsolata', monospace" },
-      { name: "Cousine", value: "'Cousine', monospace" },
-      {
-        name: "Source Code Pro",
-        value: "'Source Code Pro', monospace",
-      },
-      { name: "Roboto Mono", value: "'Roboto Mono', monospace" },
-      { name: "Fira Code", value: "'Fira Code', monospace" },
-      {
-        name: "Press Start 2P",
-        value: "'Press Start 2P', cursive",
-      },
-      { name: "Pixelify Sans", value: "'Pixelify Sans', sans-serif" },
-      { name: "DotGothic16", value: "'DotGothic16', sans-serif" },
-      { name: "Cutive Mono", value: "'Cutive Mono', monospace" },
-      { name: "Fugaz One", value: "'Fugaz One', sans-serif" },
-      { name: "Orbitron", value: "'Orbitron', sans-serif" },
-      { name: "Oswald", value: "'Oswald', sans-serif" },
-      { name: "Bebas Neue", value: "'Bebas Neue', sans-serif" },
       { name: "Monospace (System)", value: "monospace" },
       { name: "Courier New", value: "Courier New, monospace" },
+      { name: "Consolas", value: "Consolas, monospace" },
+      { name: "Lucida Console", value: "Lucida Console, monospace" },
+      { name: "Menlo", value: "Menlo, monospace" },
+      { name: "Monaco", value: "Monaco, monospace" },
+      { name: "Arial", value: "Arial, sans-serif" },
+      { name: "Helvetica", value: "Helvetica, sans-serif" },
+      { name: "Times New Roman", value: "Times New Roman, serif" },
+      { name: "Georgia", value: "Georgia, serif" },
+      { name: "Verdana", value: "Verdana, sans-serif" },
+      { name: "Impact", value: "Impact, sans-serif" },
+      { name: "Comic Sans MS", value: "Comic Sans MS, cursive" },
     ];
     webFonts.forEach((font) => {
       const option = document.createElement("option");
@@ -729,7 +723,24 @@ fetch("fonts.json")
       previewContainer.offsetHeight / 2 -
       (offscreenCanvas.height * zoomLevel) / 2;
     drawPreview();
-  })
-  .catch((error) => console.error("Error loading JSON:", error));
-//update
+
+    // Add keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') {
+          e.preventDefault();
+          downloadImage();
+        }
+      }
+      if (e.key === 'ArrowLeft' && e.altKey) {
+        e.preventDefault();
+        prevFontBtn.click();
+      }
+      if (e.key === 'ArrowRight' && e.altKey) {
+        e.preventDefault();
+        nextFontBtn.click();
+      }
+    });
+  }
+})();
 
