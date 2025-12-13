@@ -203,6 +203,25 @@
         border-radius: 50%;
         border: none;
       }
+      input[type="color"] {
+        -webkit-appearance: none;
+        -moz-appearance: none;
+        appearance: none;
+        border: 2px solid #4b5563;
+        border-radius: 0.375rem;
+        cursor: pointer;
+      }
+      input[type="color"]::-webkit-color-swatch-wrapper {
+        padding: 0;
+      }
+      input[type="color"]::-webkit-color-swatch {
+        border: none;
+        border-radius: 0.25rem;
+      }
+      input[type="color"]::-moz-color-swatch {
+        border: none;
+        border-radius: 0.25rem;
+      }
     </style>
   </head>
   <body>
@@ -288,6 +307,27 @@
           <span id="fontScaleDisplay" class="text-xl font-bold text-center w-8"
             >1</span
           >
+        </div>
+
+        <!-- Color Picker Control -->
+        <div class="w-full md:w-1/2 flex items-center justify-center gap-2">
+          <label class="text-lg font-semibold text-gray-400 min-w-[80px]">Color:</label>
+          <input
+            type="color"
+            id="fontColorPicker"
+            value="#000000"
+            class="h-12 w-24 cursor-pointer rounded-md border-2 border-gray-600"
+            title="Choose font color"
+          />
+          <input
+            type="text"
+            id="fontColorText"
+            value="#000000"
+            class="control-input w-24 text-center font-mono"
+            placeholder="#000000"
+            pattern="^#[0-9A-Fa-f]{6}$"
+            title="Enter hex color (e.g., #FF0000)"
+          />
         </div>
 
         <!-- Alignment Controls -->
@@ -413,7 +453,15 @@
       </div>
     </div>
 
+    <!-- Load font data first, then main script -->
     <script src="fonts_data.js"></script>
+    <script>
+      // Verify fontBundle loaded before proceeding
+      if (typeof fontBundle === 'undefined') {
+        console.error('ERROR: fontBundle not loaded! Check that fonts_data.js exists and is valid.');
+        document.body.innerHTML = '<div style="padding: 20px; color: red; font-family: monospace;">Error: Font data failed to load. Please ensure fonts_data.js exists in the same directory.</div>';
+      }
+    </script>
     <script src="script.js"></script>
   </body>
 </html>

@@ -1,14 +1,19 @@
-// Font data is loaded from fonts_data.js (embedded fonts.json)
+// Embedded font data - works offline
+// Font data will be loaded from fonts_data.js or embedded here
 
 // Initialize app when DOM is ready
 (function() {
-  if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', init);
-  } else {
-    init();
-  }
-
   function init() {
+    // Check if fontBundle is loaded (check both global and window)
+    const fontData = typeof fontBundle !== 'undefined' ? fontBundle : (typeof window !== 'undefined' && window.fontBundle);
+    if (!fontData) {
+      console.error('fontBundle is not defined. Make sure fonts_data.js is loaded before script.js');
+      setTimeout(init, 100); // Retry after 100ms
+      return;
+    }
+    
+    // Use the font data - reference the global fontBundle
+    // fontBundle should be available globally from fonts_data.js
 
     // Get references to all the necessary elements
     const textInput = document.getElementById("textInput");
@@ -28,9 +33,13 @@
     const fontScaleControls = document.getElementById("fontScaleControls");
     const fontScaleRange = document.getElementById("fontScaleRange");
     const fontScaleDisplay = document.getElementById("fontScaleDisplay");
+    const fontColorPicker = document.getElementById("fontColorPicker");
+    const fontColorText = document.getElementById("fontColorText");
 
     // Dynamically populate font options from the loaded JSON data
-    for (const key in fontBundle) {
+    // Use fontData (which references fontBundle) to avoid scope issues
+    const bundle = fontData;
+    for (const key in bundle) {
       const option = document.createElement("option");
       option.value = `custom-${key}`;
       option.textContent = key;
@@ -77,6 +86,7 @@
     let lastMouseY = 0;
     let lastPixelCount = 0;
     let currentAlignment = "left"; // New state variable for alignment
+    let currentFontColor = "#000000"; // Current font color
 
     let touchStartX = 0;
     let touchStartY = 0;
@@ -88,7 +98,7 @@
 
     /**
      * Renders a pixel font from a 1D or 2D array font data.
-     * @param {object} fontData The font data object containing character definitions.
+     * @param {object} fontDataParam The font data object containing character definitions.
      * @param {string} text The text to render.
      * @param {string} alignment The text alignment ('left', 'center', 'right').
      * @param {number} scale The uniform scaling factor.
@@ -97,18 +107,18 @@
      * @returns {number} The total number of black pixels rendered.
      */
     const renderPixelFont = (
-      fontData,
+      fontDataParam,
       text,
       alignment,
       scale = 1,
       charSpacing = 1,
       lineSpacing = 1
     ) => {
-      if (!text || !fontData) return 0;
+      if (!text || !fontDataParam) return 0;
       const lines = text.split("\n");
 
       // Determine font dimensions based on the data structure
-      const referenceChar = fontData["A"] || fontData["a"] || fontData[" "];
+      const referenceChar = fontDataParam["A"] || fontDataParam["a"] || fontDataParam[" "];
       if (!referenceChar) {
         console.error("Could not find a reference character in the font data.");
         return 0;
@@ -122,8 +132,8 @@
         charHeight = referenceChar.length;
       } else {
         // 1D array format: [0, 1, 0, 1, 0, 1]
-        const fontName = Object.keys(fontBundle).find(
-          (key) => fontBundle[key] === fontData
+        const fontName = Object.keys(bundle).find(
+          (key) => bundle[key] === fontDataParam
         );
         if (fontName === "Microfont3x3") {
           charWidth = 3;
@@ -146,7 +156,7 @@
         const lineChars = [];
         for (const char of line) {
           const charData =
-            fontData[char] || fontData[char.toLowerCase()] || fontData[" "];
+            fontDataParam[char] || fontDataParam[char.toLowerCase()] || fontDataParam[" "];
           if (!charData) continue;
 
           let charRenderWidth = 0;
@@ -246,7 +256,7 @@
                   : charData[y * tempCharWidth + x];
                 if (pixelValue === 1) {
                   // This is the core logic: a single pixel from the font data is rendered as an n x n square.
-                  offscreenCtx.fillStyle = "black";
+                  offscreenCtx.fillStyle = currentFontColor;
                   offscreenCtx.fillRect(
                     currentX + (x - startCol) * scale,
                     currentY + y * scale,
@@ -258,7 +268,7 @@
                 }
               }
             }
-          } else if (char.data === fontData[" "]) {
+          } else if (char.data === fontDataParam[" "]) {
             // Handle spaces specifically
           }
 
@@ -281,7 +291,7 @@
         fontScaleControls.style.display = "flex";
         const fontKey = selectedFont.replace("custom-", "");
         pixelCount = renderPixelFont(
-          fontBundle[fontKey],
+          bundle[fontKey],
           text,
           currentAlignment,
           customFontScale
@@ -318,7 +328,7 @@
         );
 
         // Draw the text line by line
-        offscreenCtx.fillStyle = "black";
+        offscreenCtx.fillStyle = currentFontColor;
         offscreenCtx.font = `${fontHeight}px ${fontStyle}`;
         offscreenCtx.textBaseline = "top"; // Consistent text baseline
 
@@ -354,7 +364,7 @@
           );
         }
 
-        // Convert to 1-bit: black or transparent
+        // Convert to selected color: apply color to non-transparent pixels
         const imageData = offscreenCtx.getImageData(
           0,
           0,
@@ -363,13 +373,30 @@
         );
         const data = imageData.data;
 
+        // Parse the hex color (handle both #RRGGBB and RRGGBB formats)
+        let hex = currentFontColor.replace('#', '').toUpperCase();
+        // Ensure it's 6 characters
+        if (hex.length === 3) {
+          // Expand shorthand #RGB to #RRGGBB
+          hex = hex.split('').map(c => c + c).join('');
+        }
+        
+        let r = 0, g = 0, b = 0;
+        if (hex.length === 6) {
+          r = parseInt(hex.substring(0, 2), 16);
+          g = parseInt(hex.substring(2, 4), 16);
+          b = parseInt(hex.substring(4, 6), 16);
+        }
+
         for (let i = 0; i < data.length; i += 4) {
           // Check if the pixel is not fully transparent
           if (data[i + 3] > 0) {
-            if (data[i] < 200) {
-              data[i] = 0;
-              data[i + 1] = 0;
-              data[i + 2] = 0;
+            // If pixel has color (not white/transparent), apply selected color
+            const gray = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            if (gray < 200) {
+              data[i] = r;
+              data[i + 1] = g;
+              data[i + 2] = b;
               data[i + 3] = 255;
               pixelCount++;
             } else {
@@ -683,6 +710,44 @@
       drawPreview();
     });
 
+    // Color picker event listeners
+    const updateColor = (color) => {
+      // Ensure color is in hex format
+      if (!color.startsWith('#')) {
+        color = '#' + color;
+      }
+      // Validate hex color
+      if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        currentFontColor = color.toUpperCase();
+        fontColorPicker.value = currentFontColor;
+        fontColorText.value = currentFontColor;
+        renderOffscreenText();
+        drawPreview();
+      }
+    };
+
+    fontColorPicker.addEventListener("input", (event) => {
+      updateColor(event.target.value);
+    });
+
+    fontColorText.addEventListener("input", (event) => {
+      updateColor(event.target.value);
+    });
+
+    fontColorText.addEventListener("blur", (event) => {
+      // Validate and fix color on blur
+      let color = event.target.value.trim();
+      if (!color.startsWith('#')) {
+        color = '#' + color;
+      }
+      if (/^#[0-9A-Fa-f]{6}$/.test(color)) {
+        updateColor(color);
+      } else {
+        // Reset to current color if invalid
+        event.target.value = currentFontColor;
+      }
+    });
+
     downloadBtn.addEventListener("click", downloadImage);
 
     // Panning event listeners
@@ -714,6 +779,9 @@
     // Initial setup and draw
     textInput.value = "Hello World!";
     fontSelect.value = "custom-threeXFiveMinifont";
+    // Initialize color picker
+    currentFontColor = fontColorPicker.value;
+    fontColorText.value = currentFontColor;
     renderOffscreenText();
     // Initial centering
     panX =
@@ -741,6 +809,14 @@
         nextFontBtn.click();
       }
     });
+  }
+
+  // Start initialization when DOM is ready
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', init);
+  } else {
+    // DOM already loaded, but wait a bit for fonts_data.js to load
+    setTimeout(init, 0);
   }
 })();
 
