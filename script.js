@@ -777,7 +777,7 @@
     });
 
     // Initial setup and draw
-    textInput.value = "Hello World!";
+    textInput.value = "Merhaba Dünya!\nHello World!";
     fontSelect.value = "custom-threeXFiveMinifont";
     // Initialize color picker
     currentFontColor = fontColorPicker.value;
